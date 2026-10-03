@@ -1,4 +1,7 @@
 import arxiv
+import os
+from pypdf import PdfReader
+import requests
 
 def search_arxiv(query: str, max_results: int = 5):
     search = arxiv.Search(
@@ -17,3 +20,17 @@ def search_arxiv(query: str, max_results: int = 5):
             "url": r.entry_id,
         })
     return papers
+
+def download_paper(paper_id: str, folder: str = "data"):
+    os.makedirs(folder, exist_ok=True)
+    path = os.path.join(folder, f"{paper_id}.pdf")
+    if not os.path.exists(path):
+        response = requests.get(f"https://arxiv.org/pdf/{paper_id}", timeout=60)
+        response.raise_for_status()
+        with open(path, "wb") as f:
+            f.write(response.content)
+    return path
+
+def pdf_to_text(path: str) -> str:
+    reader = PdfReader(path)
+    return "\n".join(page.extract_text() or "" for page in reader.pages)
