@@ -87,7 +87,7 @@ TOOL_FUNCTIONS = {
 
 
 # ---------- The agent loop ----------
-def run_agent(question, max_steps=12):
+def run_agent(question, max_steps=12, trace=None):
     contents = [types.Content(role="user", parts=[types.Part(text=question)])]
 
     for step in range(max_steps):  # safety limit on steps
@@ -112,6 +112,8 @@ def run_agent(question, max_steps=12):
             print(f"[step {step + 1}] model called {call.name} with {args}")
             try:
                 result = TOOL_FUNCTIONS[call.name](**args)
+                if trace is not None:
+                    trace.append({"tool": call.name, "args": args, "result": result})
             except Exception as e:
                 result = {"error": str(e)}
             response_parts.append(
