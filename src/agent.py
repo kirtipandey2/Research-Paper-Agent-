@@ -2,15 +2,16 @@ from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 from tools import search_arxiv
+from rag import index_paper, search_chunks
 
 load_dotenv()
 client = genai.Client()
 MODEL = "gemini-3.5-flash-lite"
 
-# 1. Describe the tool to the model
+# ---------- Tool descriptions (what the model sees) ----------
 search_declaration = {
     "name": "search_arxiv",
-    "description": "Searches arXiv for research papers on a topic. Returns titles, authors, dates, abstracts and URLs.",
+    "description": "Searches arXiv for research papers on a topic. Returns id, title, authors, date, abstract and URL.",
     "parameters": {
         "type": "object",
         "properties": {
@@ -27,25 +28,66 @@ search_declaration = {
     },
 }
 
+index_declaration = {
+    "name": "index_paper",
+    "description": "Downloads the full text of an arXiv paper and stores it so it can be searched. Use the paper id returned by search_arxiv, e.g. '2007.06081v1'.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "paper_id": {"type": "string", "description": "The arXiv id of the paper"},
+        },
+        "required": ["paper_id"],
+    },
+}
+
+passages_declaration = {
+    "name": "search_papers_text",
+    "description": "Searches the full text of all indexed papers and returns the most relevant passages with their paper id and a distance score (smaller means a closer match).",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "question": {"type": "string", "description": "What to look for in the papers"},
+        },
+        "required": ["question"],
+    },
+}
+
+# ---------- Model configuration ----------
 config = types.GenerateContentConfig(
     system_instruction=(
-        "You are a research assistant. Use the search_arxiv tool when you need papers. "
+        "You are a research assistant. Follow this workflow: "
+        "(1) use search_arxiv to find relevant papers; "
+        "(2) use index_paper on the 2 or 3 most relevant ones; "
+        "(3) use search_papers_text to retrieve passages from their full text; "
+        "(4) answer using only what the retrieved passages and abstracts say. "
         "Every factual claim must end with a citation in square brackets using the "
-        "paper's arXiv id, like [2007.06081v1]. Only make claims that the paper's "
-        "abstract directly states. Never put abstract text inside a citation. "
-        "Do not add examples, definitions or background from your own knowledge; "
-        "if the abstracts don't cover something, write 'Not covered in the retrieved papers.' "
-        "At the end, list each cited id with its title and URL."
+        "paper's arXiv id, like [2007.06081v1]. Never put paper text inside a citation. "
+        "Do not add background from your own knowledge. If the passages do not "
+        "answer something, write 'Not covered in the retrieved papers.' "
+        "End with a list of cited ids with their titles and URLs."
     ),
-    tools=[types.Tool(function_declarations=[search_declaration])],
+    tools=[
+        types.Tool(
+            function_declarations=[
+                search_declaration,
+                index_declaration,
+                passages_declaration,
+            ]
+        )
+    ],
     automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
 )
 
-# 2. Map tool names to your real Python functions
-TOOL_FUNCTIONS = {"search_arxiv": search_arxiv}
+# ---------- Map tool names to your real Python functions ----------
+TOOL_FUNCTIONS = {
+    "search_arxiv": search_arxiv,
+    "index_paper": index_paper,
+    "search_papers_text": search_chunks,
+}
 
 
-def run_agent(question, max_steps=8):
+# ---------- The agent loop ----------
+def run_agent(question, max_steps=12):
     contents = [types.Content(role="user", parts=[types.Part(text=question)])]
 
     for step in range(max_steps):  # safety limit on steps
@@ -66,9 +108,10 @@ def run_agent(question, max_steps=8):
         # Run each requested tool and send the results back
         response_parts = []
         for call in function_calls:
-            print(f"[step {step + 1}] model called {call.name} with {dict(call.args)}")
+            args = dict(call.args or {})
+            print(f"[step {step + 1}] model called {call.name} with {args}")
             try:
-                result = TOOL_FUNCTIONS[call.name](**call.args)
+                result = TOOL_FUNCTIONS[call.name](**args)
             except Exception as e:
                 result = {"error": str(e)}
             response_parts.append(
