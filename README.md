@@ -2,7 +2,7 @@
 
 An LLM agent that answers research questions from real papers. You ask a question; the agent searches arXiv, downloads and reads the full text of the most relevant papers, retrieves the passages that matter, and writes an answer where every claim carries an arXiv-id citation.
 
-**Live demo:** _add your Streamlit link here after deployment_
+**Live demo:** https://research-paper-agent26.streamlit.app
 
 ![Screenshot of the app](docs/screenshot.png)
 _Add a screenshot or short demo GIF at docs/screenshot.png._
