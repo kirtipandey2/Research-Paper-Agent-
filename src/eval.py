@@ -72,7 +72,7 @@ if __name__ == "__main__":
         r = evaluate(q)
         results.append(r)
         print({k: v for k, v in r.items() if k not in ("answer", "passages")})
-        time.sleep(15)  # stay under free-tier rate limits
+        time.sleep(30)  # stay under free-tier rate limits
 
     ok = [r for r in results if "error" not in r]
     with_bullets = [r for r in ok if r["bullets"] > 0]

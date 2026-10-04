@@ -65,6 +65,12 @@ config = types.GenerateContentConfig(
         "Do not add background from your own knowledge. If the passages do not "
         "answer something, write 'Not covered in the retrieved papers.' "
         "End with a list of cited ids with their titles and URLs."
+        "Before answering you must call index_paper for at least 2 papers and "
+        "search_papers_text at least once. Never answer 'Not covered in the retrieved "
+        "papers' until you have done this. "
+        "Only cite a paper in a factual claim if search_papers_text returned a passage "
+        "from it. For papers you only saw in search results, you may mention them, but "
+        "label the claim '(abstract only)'."
     ),
     tools=[
         types.Tool(

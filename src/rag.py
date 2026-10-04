@@ -7,6 +7,9 @@ collection = db.get_or_create_collection("papers")
 
 
 def chunk_text(text, size=900, step=800):
+    cut = text.rfind("References")
+    if cut > len(text) * 0.5:
+        text = text[:cut]
     text = " ".join(unicodedata.normalize("NFKC", text).split())
     return [text[i:i + size] for i in range(0, len(text), step)]
 
