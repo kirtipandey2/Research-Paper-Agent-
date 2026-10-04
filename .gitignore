@@ -225,3 +225,4 @@ __pycache__/
 *.pyc
 data/*.pdf
 db/
+eval_*.json
